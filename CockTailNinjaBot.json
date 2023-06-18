@@ -1,0 +1,291 @@
+{
+  "name": "CockTailNinjaBot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "275bc58b-1119-4e6f-b4d8-fe34906eba5f",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        520
+      ],
+      "webhookId": "2d1dfa39-7348-499a-9cf2-d89221e6856a",
+      "credentials": {
+        "telegramApi": {
+          "id": "4",
+          "name": "CockTail Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "Welcome to the Cocktail Bot! Discover a world of tantalizing cocktails. Our bot offers extensive cocktail recipes. To get started, simply type in the name of a cocktail you'd like to explore, and our Cocktail Bot will provide you with its recipe, or type random to get a random Cocktail recipe. 🍹🌟",
+        "additionalFields": {}
+      },
+      "id": "2b25a18c-82bc-4385-b715-6bd139d77840",
+      "name": "Welcome Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        200
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "4",
+          "name": "CockTail Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.thecocktaildb.com/api/json/v1/1/search.php",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "s",
+              "value": "{{ $json.message.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "39246c91-0d33-4b85-9ed6-f74452ed1eba",
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        780,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.drinks.isEmpty()}}",
+              "operation": "notEqual"
+            }
+          ]
+        },
+        "combineOperation": "=all"
+      },
+      "id": "06b02755-4fbc-4f7f-b9fa-0bbf773e782e",
+      "name": "CheckResponse",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "Unfortunately we cannot find the cocktail you are looking for. Please try another cocktail.",
+        "additionalFields": {}
+      },
+      "id": "f2e99f4e-46dc-4310-9bd8-6dac5de3f186",
+      "name": "Cocktail Not Found",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1260,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "4",
+          "name": "CockTail Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n\n\nlet drinks = $input.all()\n\nlet drink = drinks[0].json.drinks[0]\nlet drinkId = drink.idDrink;\nlet instructions = drink.strInstructions.split(\".\").filter(str => str.length !== 0).map((str,index) => `${index + 1}. ${str.trim()}`);\n\nlet ingredients = [];\nfor (let i = 1; i < 16; i++) {\n      if (drink[`strIngredient${i}`]) {\n          ingredients .push( `${i}. ${(drink[`strMeasure${i}`] != null ? drink[`strMeasure${i}`]: '')}  ${drink[`strIngredient${i}`]}` )\n}\n}\n        \n\nreturn {json: {name: drink.strDrink, ingredients: ingredients, instructions: instructions, image: drink.strDrinkThumb}};"
+      },
+      "id": "0f160fa1-7c12-478a-8c62-81f299102086",
+      "name": "FormatResponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1160,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendPhoto",
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "file": "={{ $json.image }}",
+        "additionalFields": {
+          "caption": "={{ $json[\"name\"]  + \"\\n\\nIngredients: \\n\\n\" + $('FormatResponse').item.json.ingredients.join(\".\\n\") +\n   \"\\n\\nInstructions:\\n\\n\" + \n   $('FormatResponse').item.json.instructions.join(\".\\n\")\n }}"
+        }
+      },
+      "id": "b0bf1154-208c-4ae0-bfd8-31bad1fd6422",
+      "name": "Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        500
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "4",
+          "name": "CockTail Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.message.text.toLowerCase() }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "/start"
+            },
+            {
+              "value2": "random",
+              "output": 1
+            }
+          ]
+        },
+        "fallbackOutput": 2
+      },
+      "id": "f4ba727f-3dcf-4d26-9bac-0ce5abbe6b70",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        440,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.thecocktaildb.com/api/json/v1/1/random.php",
+        "options": {}
+      },
+      "id": "edb32aa8-2d2f-4ffb-8a9b-db684a13d30b",
+      "name": "Random Recipe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        780,
+        440
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "CheckResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CheckResponse": {
+      "main": [
+        [
+          {
+            "node": "Cocktail Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FormatResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatResponse": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Welcome Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Random Recipe",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Random Recipe": {
+      "main": [
+        [
+          {
+            "node": "CheckResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "56260e2d-2d38-46fa-aa82-66433bc3d483",
+  "id": "3",
+  "meta": {
+    "instanceId": "60dc2aaa66789e92a537108a2bc601a33ab153ad6b7053b12ca8d7a19e8c01e3"
+  },
+  "tags": []
+}
